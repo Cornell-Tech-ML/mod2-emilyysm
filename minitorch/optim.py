@@ -15,6 +15,7 @@ class SGD(Optimizer):
         self.lr = lr
 
     def zero_grad(self) -> None:
+        """Set gradients and derivatives to None."""
         for p in self.parameters:
             if p.value is None:
                 continue
@@ -26,6 +27,7 @@ class SGD(Optimizer):
                     p.value.grad = None
 
     def step(self) -> None:
+        """Take step in gradient/derivative direction."""
         for p in self.parameters:
             if p.value is None:
                 continue

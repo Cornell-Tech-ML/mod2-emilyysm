@@ -111,7 +111,6 @@ class All(Function):
             return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
 
-# TODO: Implement for Task 2.3.
 class Mul(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
@@ -122,10 +121,10 @@ class Mul(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """Backward pass for multiplication."""
-        a, b = ctx.saved_values
-        grad_a = grad_output.f.mul_zip(grad_output, b)
-        grad_b = grad_output.f.mul_zip(a, grad_output)
-        return grad_a, grad_b
+        t1, t2 = ctx.saved_values
+        grad_t1 = grad_output.f.mul_zip(grad_output, t2)
+        grad_t2 = grad_output.f.mul_zip(t1, grad_output)
+        return grad_t1, grad_t2
 
 
 class Sigmoid(Function):
@@ -141,10 +140,9 @@ class Sigmoid(Function):
         (t1,) = ctx.saved_values
         t = t1.f.sigmoid_map(t1)
         one = minitorch.Tensor.make([1], (1,), backend=t.backend)
-        grad_input = grad_output.f.mul_zip(
+        return grad_output.f.mul_zip(
             grad_output, t.f.mul_zip(t, t.f.add_zip(one, t.f.neg_map(t)))
         )
-        return grad_input
 
 
 class ReLU(Function):
@@ -185,8 +183,8 @@ class Exp(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         """Backward pass for exponentiation."""
-        (result,) = ctx.saved_values
-        return grad_output.f.mul_zip(grad_output, result.f.exp_map(result))
+        (t1,) = ctx.saved_values
+        return grad_output.f.mul_zip(grad_output, t1.f.exp_map(t1))
 
 
 class Sum(Function):
@@ -200,12 +198,6 @@ class Sum(Function):
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Backward pass for summation."""
         return grad_output, 0.0
-        # dim_int, input_shape = ctx.saved_values
-        # grad_shape = list(input_shape)
-        # grad_shape[dim_int] = 1
-        # grad_output_reshaped = grad_output.view(*grad_shape)
-        # grad_input = grad_output_reshaped + 0  # Adding zero triggers broadcasting
-        # return grad_input, 0.0
 
 
 class LT(Function):
@@ -218,12 +210,8 @@ class LT(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """Backward pass for less-than comparison (zero gradients)."""
-        zero = minitorch.Tensor.make([0], (1,), backend=grad_output.backend)
-        grad_a = grad_output.f.mul_zip(grad_output, zero)
-        grad_b = grad_output.f.mul_zip(grad_output, zero)
-        return grad_a, grad_b
-        # t1, t2 = ctx.saved_values
-        # return t1.zeros(), t2.zeros()
+        t1, t2 = ctx.saved_values
+        return t1.zeros(), t2.zeros()
 
 
 class EQ(Function):
@@ -251,11 +239,11 @@ class Permute(Function):
     @staticmethod
     def forward(ctx: Context, t: Tensor, order: Tensor) -> Tensor:
         """Forward pass for tensor permutation."""
-        order_list = [int(order[i]) for i in range(order.size)]
-        ctx.save_for_backward(order_list)
-        if len(order_list) == 0 or t.dims == 0:
+        orderlst = [int(order[i]) for i in range(order.size)]
+        ctx.save_for_backward(orderlst)
+        if len(orderlst) == 0 or t.dims == 0:
             return t
-        permuted_tensor = t._tensor.permute(*order_list)
+        permuted_tensor = t._tensor.permute(*orderlst)
         return t._new(permuted_tensor)
 
     @staticmethod
@@ -264,10 +252,10 @@ class Permute(Function):
         (order,) = ctx.saved_values
         if len(order) == 0 or grad_output.dims == 0:
             return grad_output, 0.0
-        inverse_order = [0] * len(order)
-        for i, p in enumerate(order):
-            inverse_order[p] = i
-        permuted_grad = grad_output._tensor.permute(*inverse_order)
+        invorder = [0] * len(order)
+        for i, j in enumerate(order):
+            invorder[j] = i
+        permuted_grad = grad_output._tensor.permute(*invorder)
         grad_input = grad_output._new(permuted_grad)
         return grad_input, 0.0
 

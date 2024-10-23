@@ -368,16 +368,11 @@ class Tensor:
     def sum(self, dim: Optional[int] = None) -> Tensor:
         """Sum the tensor along the specified dimension."""
         if dim is None:
-            # Sum over all elements
-            flattened = self.contiguous().view(int(operators.prod(self.shape)))
-            return Sum.apply(flattened, tensor([0]))
+            return Sum.apply(
+                self.contiguous().view(int(operators.prod(self.shape))), tensor([0])
+            )
         else:
-            # Sum over the specified dimension
             return Sum.apply(self, tensor([dim]))
-        # if dim is not None:
-        #     return Sum.apply(self, self._ensure_tensor(dim))
-        # else:
-        #     return Sum.apply(self.contiguous().view(self.size), self._ensure_tensor(0))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         """Compute the mean of the tensor along the specified dimension."""
